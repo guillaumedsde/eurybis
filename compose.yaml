@@ -1,0 +1,32 @@
+services:
+  lidis:
+    build:
+      context: &lidi-context https://github.com/ANSSI-FR/lidi.git#v2.1.0
+      target: send
+    network_mode: host
+    command:
+      - "--from-tcp=127.0.0.1:6000"
+      - "--to=127.0.0.1:6001"
+
+  lidir:
+    build:
+      context: *lidi-context
+      target: receive
+    network_mode: host
+    command:
+      - "--from=127.0.0.1:6001"
+      - "--to-tcp=127.0.0.1:6002"
+
+  receiver:
+    image: python:3.14
+    network_mode: host
+    environment:
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - type: bind
+        source: ./receiver/receiver.py
+        target: /receiver.py
+        read_only: true
+    command:
+      - "python"
+      - "/receiver.py"
