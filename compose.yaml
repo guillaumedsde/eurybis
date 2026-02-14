@@ -23,10 +23,20 @@ services:
     environment:
       PYTHONUNBUFFERED: "1"
     volumes:
-      - type: bind
-        source: ./receiver/receiver.py
-        target: /receiver.py
-        read_only: true
+      - type: volume
+        source: receiver_data
+        target: /data
+    develop:
+      watch:
+        - path: ./eurybis/receiver.py
+          target: /receiver.py
+          action: sync+restart
     command:
       - "python"
       - "/receiver.py"
+      - "/data"
+      - "--listen-port"
+      - "6002"
+
+volumes:
+  receiver_data:
