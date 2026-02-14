@@ -1,4 +1,22 @@
 services:
+  origin:
+    build:
+      target: origin
+      dockerfile: eurybis.Dockerfile
+    ports:
+      - host_ip: "127.0.0.1"
+        published: 8080
+        target: 8080
+        app_protocol: "http"
+        name: "eurybis-origin-http-server"
+    develop: &eurybis-develop
+      watch:
+        - path: ./eurybis
+          target: /eurybis/eurybis
+          action: sync+restart
+        - path: ./uv.lock
+          action: rebuild
+
   lidis:
     build:
       target: send
@@ -18,25 +36,18 @@ services:
       - "--to-tcp=127.0.0.1:6002"
 
   receiver:
-    image: python:3.14
+    build:
+      target: receiver
+      dockerfile: eurybis.Dockerfile
     network_mode: host
-    environment:
-      PYTHONUNBUFFERED: "1"
     volumes:
       - type: volume
         source: receiver_data
         target: /data
-    develop:
-      watch:
-        - path: ./eurybis/receiver.py
-          target: /receiver.py
-          action: sync+restart
+    develop: *eurybis-develop
     command:
-      - "python"
-      - "/receiver.py"
       - "/data"
-      - "--listen-port"
-      - "6002"
+      - "--listen-port=6002"
 
 volumes:
   receiver_data:

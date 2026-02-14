@@ -1,0 +1,7 @@
+# Ignore everything
+*
+
+!/eurybis/**/*.py
+!/pyproject.toml
+!/uv.lock
+!/.python-version
