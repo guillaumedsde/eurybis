@@ -1,8 +1,8 @@
 services:
   lidis:
     build:
-      context: &lidi-context https://github.com/ANSSI-FR/lidi.git#v2.1.0
       target: send
+      dockerfile: lidi.Dockerfile
     network_mode: host
     command:
       - "--from-tcp=127.0.0.1:6000"
@@ -10,8 +10,8 @@ services:
 
   lidir:
     build:
-      context: *lidi-context
       target: receive
+      dockerfile: lidi.Dockerfile
     network_mode: host
     command:
       - "--from=127.0.0.1:6001"
