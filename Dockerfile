@@ -50,18 +50,10 @@ USER nonroot
 
 WORKDIR /eurybis/eurybis
 
-FROM base AS receiver
-
 VOLUME [ "/data" ]
 
 EXPOSE 6000
-
-ENTRYPOINT ["python", "/eurybis/eurybis/receiver.py"]
-CMD [ "/data" ]
-
-
-FROM base AS origin
-
 EXPOSE 8080
 
-ENTRYPOINT ["python", "/eurybis/eurybis/origin_http_server.py"]
+
+ENTRYPOINT ["python", "-m", "eurybis"]

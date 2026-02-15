@@ -1,4 +1,3 @@
-import argparse
 import asyncio
 import fcntl
 import logging
@@ -8,6 +7,8 @@ import socket
 import subprocess
 import sys
 import uuid
+
+from eurybis.config import DestinationEurybisConfiguration
 
 LOGGER = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ async def wait_until_readable(fileno: int):
     await ready.wait()
 
 
-async def handle_file(sock: socket.socket, addr: str):
+async def handle_file(sock: socket.socket, destination_directory: pathlib.Path):
     LOGGER.info("Handling new socket connection")
     sock.setblocking(False)
 
@@ -36,7 +37,7 @@ async def handle_file(sock: socket.socket, addr: str):
     os.set_blocking(rpipe, False)
     os.set_blocking(wpipe, False)
 
-    filepath = DATA_DIRECTORY / str(uuid.uuid4())
+    filepath = destination_directory / str(uuid.uuid4())
     dest_file = filepath.open("wb", buffering=0)
 
     try:
@@ -61,18 +62,18 @@ async def handle_file(sock: socket.socket, addr: str):
         sock.close()
 
 
-async def _receiver_server(listen_address: str, listen_port: int):
-    SOCKET_PATH.unlink(missing_ok=True)
+async def _receiver_server(config: DestinationEurybisConfiguration):
+    config.lidir_socket_path.unlink(missing_ok=True)
     lidi_dest_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    lidi_dest_socket.bind(str(SOCKET_PATH))
+    lidi_dest_socket.bind(str(config.lidir_socket_path))
     lidi_dest_socket.setblocking(False)
     lidi_dest_socket.listen()
     LOGGER.info("Starting lidi")
     subprocess.Popen(
         (
             "diode-receive",
-            f"--from={listen_address}:{listen_port}",
-            f"--to-unix={SOCKET_PATH}",
+            f"--from={config.lidir_listen_host}:{config.lidir_listen_port}",
+            f"--to-unix={config.lidir_socket_path}",
         ),
         stderr=sys.stderr,
         stdout=sys.stdout,
@@ -80,54 +81,15 @@ async def _receiver_server(listen_address: str, listen_port: int):
 
     loop = asyncio.get_running_loop()
 
-    LOGGER.info("Listening for connections on %s", SOCKET_PATH)
+    LOGGER.info("Listening for connections on %s", config.lidir_socket_path)
     while True:
-        client_sock, client_addr = await loop.sock_accept(lidi_dest_socket)
-        asyncio.create_task(handle_file(client_sock, client_addr))
+        client_sock, _ = await loop.sock_accept(lidi_dest_socket)
+        asyncio.create_task(handle_file(client_sock, config.data_directory))
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        prog="eurybis-receive",
-        description="Receiver for Eurybis, receives data from lidi-send and stores it on disk",
-    )
-    parser.add_argument(
-        "data_directory",
-        type=pathlib.Path,
-    )
-    parser.add_argument(
-        "--listen-address",
-        type=str,
-        default="127.0.0.1",
-    )
-    parser.add_argument(
-        "--listen-port",
-        type=int,
-        default=6001,
-    )
-    parser.add_argument(
-        "--log-level",
-        type=str,
-        default=logging.getLevelName(logging.INFO),
-        choices=logging.getLevelNamesMapping().keys(),
-    )
-    parser.add_argument(
-        "--socket-path",
-        type=pathlib.Path,
-        default=pathlib.Path("/tmp/lidir.sock"),
-    )
-
-    args = parser.parse_args()
-
-    DATA_DIRECTORY: pathlib.Path = args.data_directory
-    SOCKET_PATH: pathlib.Path = args.socket_path
-
-    logging.basicConfig(
-        level=logging.getLevelNamesMapping()[args.log_level],
-    )
+def destination_server(config: DestinationEurybisConfiguration):
     asyncio.run(
         _receiver_server(
-            args.listen_address,
-            args.listen_port,
+            config,
         )
     )

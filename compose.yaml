@@ -1,11 +1,12 @@
 services:
   origin:
-    build:
-      target: origin
-      dockerfile: eurybis.Dockerfile
+    image: eurybis
+    build: &eurybis-build
       provenance: false
       sbom: false
     network_mode: host
+    tmpfs: &eurybis-tmpfs
+      - /run:mode=777,noexec,size=1K
     develop: &eurybis-develop
       watch:
         - path: ./eurybis
@@ -13,21 +14,19 @@ services:
           action: sync+restart
         - path: ./uv.lock
           action: rebuild
+    command:
+      - "origin"
 
-  receiver:
-    build:
-      target: receiver
-      dockerfile: eurybis.Dockerfile
-      provenance: false
-      sbom: false
+  destination:
+    image: eurybis
+    build: *eurybis-build
     network_mode: host
     volumes:
       - type: bind
         source: ./data
         target: /data
-    tmpfs:
-      - /tmp
+    tmpfs: *eurybis-tmpfs
     develop: *eurybis-develop
     command:
+      - "destination"
       - "/data"
-      - "--listen-port=6001"

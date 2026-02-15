@@ -1,6 +1,6 @@
 import asyncio
 import http
-import pathlib
+import os
 
 import fastapi
 
@@ -8,12 +8,10 @@ app = fastapi.FastAPI()
 
 CHUNK_SIZE = 20_000_000  # 20MB
 
-SOCKET_PATH = pathlib.Path("/tmp/lidir.sock")
-
 
 @app.post("/transferables/")
 async def create_transferable(request: fastapi.Request):
-    reader, writer = await asyncio.open_unix_connection(SOCKET_PATH)
+    _, writer = await asyncio.open_unix_connection(os.environ["LIDIS_SOCKET_PATH"])
     bytes_sent = 0
     # Chunks are dependent on the ASGI implementation, see:
     # https://github.com/Kludex/starlette/issues/2590
