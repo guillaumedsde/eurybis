@@ -1,26 +1,73 @@
-import asyncio
-import http
+import argparse
+import logging
+import pathlib
+import subprocess
+import sys
 
-import fastapi
+import uvicorn
 
-app = fastapi.FastAPI()
+import eurybis.api
 
-CHUNK_SIZE = 20_000_000  # 20MB
+LOGGER = logging.getLogger(__name__)
 
 
-@app.post("/transferables/")
-async def create_transferable(request: fastapi.Request):
-    reader, writer = await asyncio.open_connection("127.0.0.1", 6000)
+def _origin():
+    SOCKET_PATH.unlink(missing_ok=True)
+    LOGGER.info("Starting lidi")
+    subprocess.Popen(
+        (
+            "diode-send",
+            f"--from-unix={SOCKET_PATH}",
+            "--to=127.0.0.1:6001",
+            "--encode-threads=6",
+            "--cpu-affinity",
+        ),
+        stderr=sys.stderr,
+        stdout=sys.stdout,
+    )
+    uvicorn.run(
+        eurybis.api.app,
+        host="127.0.0.1",
+        port=8080,
+        log_level="info",
+        http="httptools",
+        loop="uvloop",
+    )
 
-    bytes_sent = 0
-    # Chunks are dependent on the ASGI implementation, see:
-    # https://github.com/Kludex/starlette/issues/2590
-    async for chunk in request.stream():
-        writer.write(chunk)
-        bytes_sent += len(chunk)
-        if bytes_sent % CHUNK_SIZE == 0:
-            await writer.drain()
-    writer.close()
-    await writer.wait_closed()
 
-    return fastapi.Response(status_code=http.HTTPStatus.OK)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog="eurybis-send",
+        description="Receiver for Eurybis, receives data from lidi-send and stores it on disk",
+    )
+    parser.add_argument(
+        "--listen-address",
+        type=str,
+        default="127.0.0.1",
+    )
+    parser.add_argument(
+        "--listen-port",
+        type=int,
+        default=6001,
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default=logging.getLevelName(logging.INFO),
+        choices=logging.getLevelNamesMapping().keys(),
+    )
+    parser.add_argument(
+        "--socket-path",
+        type=pathlib.Path,
+        default=pathlib.Path("/tmp/lidir.sock"),
+    )
+
+    args = parser.parse_args()
+
+    SOCKET_PATH: pathlib.Path = args.socket_path
+
+    logging.basicConfig(
+        level=logging.getLevelNamesMapping()[args.log_level],
+    )
+
+    _origin()

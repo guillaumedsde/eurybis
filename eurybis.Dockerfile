@@ -43,9 +43,12 @@ COPY --from=builder --chown=root:root --chmod=755 /lidi/target/release/diode-sen
 
 # Place executables in the environment at the front of the path
 ENV PATH="/eurybis/.venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/eurybis
 
 USER nonroot
+
+WORKDIR /eurybis/eurybis
 
 FROM base AS receiver
 
@@ -61,4 +64,4 @@ FROM base AS origin
 
 EXPOSE 8080
 
-ENTRYPOINT ["uvicorn", "--port=8080", "--loop=uvloop", "--http=httptools", "eurybis.origin_http_server:app"]
+ENTRYPOINT ["python", "/eurybis/eurybis/origin_http_server.py"]
