@@ -1,6 +1,7 @@
 services:
   origin:
     image: eurybis
+    mem_limit: 8G
     build: &eurybis-build
       provenance: false
       sbom: false
@@ -19,6 +20,7 @@ services:
 
   destination:
     image: eurybis
+    mem_limit: 8G
     build: *eurybis-build
     network_mode: host
     volumes:

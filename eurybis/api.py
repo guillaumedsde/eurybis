@@ -6,7 +6,7 @@ import fastapi
 
 app = fastapi.FastAPI()
 
-CHUNK_SIZE = 20_000_000  # 20MB
+CHUNK_SIZE = 1_000_000  # 1MB
 
 
 @app.post("/transferables/")

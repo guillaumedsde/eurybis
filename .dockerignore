@@ -5,3 +5,6 @@
 !/pyproject.toml
 !/uv.lock
 !/.python-version
+
+**/*.pyc
+**/__pycache__/
