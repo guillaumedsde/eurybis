@@ -21,12 +21,11 @@ services:
       provenance: false
       sbom: false
     network_mode: host
-    # volumes:
-    #   - type: bind
-    #     source: ./data
-    #     target: /data
+    volumes:
+      - type: bind
+        source: ./data
+        target: /data
     tmpfs:
-      - /data:mode=777,noexec,size=10G
       - /tmp
     develop: *eurybis-develop
     command:
