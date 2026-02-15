@@ -1,34 +1,88 @@
 import argparse
 import asyncio
 import logging
+import os
 import pathlib
+import socket
+import subprocess
+import sys
 import uuid
 
 LOGGER = logging.getLogger(__name__)
 
+BUF_SIZE = 1 << 20  # 1 MB
 
-async def handle_file(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-    addr = writer.get_extra_info("peername")
-    LOGGER.info(f"Received from {addr!r}")
+
+async def wait_until_readable(fileno: int):
+    loop = asyncio.get_running_loop()
+    ready = asyncio.Event()
+
+    def on_readable():
+        ready.set()
+
+    loop.add_reader(fileno, on_readable)
+    await ready.wait()
+
+
+async def handle_file(sock: socket.socket, addr: str):
+    LOGGER.info("Handling new socket connection")
+    sock.setblocking(False)
+
+    rpipe, wpipe = os.pipe()
+
+    # os.set_blocking(rpipe, False)
+    # os.set_blocking(wpipe, False)
+
     filepath = DATA_DIRECTORY / str(uuid.uuid4())
-    with filepath.open("wb") as dest_file:
-        while chunk := await reader.read(CHUNK_SIZE):
-            # Offload file write to thread to avoid blocking
-            await asyncio.to_thread(dest_file.write, chunk)
+    dest_file = filepath.open("wb", buffering=0)
 
-    LOGGER.info("Close the connection")
-    writer.close()
-    await writer.wait_closed()
+    try:
+        while True:
+            try:
+                byte_count_from_socket = os.splice(sock.fileno(), wpipe, BUF_SIZE)
+                if not byte_count_from_socket:
+                    break
+                LOGGER.debug("Spliced %d bytes from socket", byte_count_from_socket)
+                byte_count_from_pipe = os.splice(
+                    rpipe, dest_file.fileno(), byte_count_from_socket
+                )
+                LOGGER.debug("Spliced %d bytes from pipe", byte_count_from_pipe)
+            except BlockingIOError:
+                LOGGER.debug("BlockingIOError")
+                await wait_until_readable(sock.fileno())
+    finally:
+        LOGGER.info("Closing socket, pipes and file")
+        os.close(rpipe)
+        os.close(wpipe)
+        dest_file.close()
+        sock.close()
 
 
-async def receiver_server(address: str, port: int):
-    server = await asyncio.start_server(handle_file, address, port)
+async def _receiver_server(listen_address: str, listen_port: int):
+    SOCKET_PATH.unlink(missing_ok=True)
+    lidi_dest_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    lidi_dest_socket.bind(str(SOCKET_PATH))
+    lidi_dest_socket.setblocking(False)
+    lidi_dest_socket.listen()
+    LOGGER.info("Starting lidi")
+    subprocess.Popen(
+        (
+            "diode-receive",
+            f"--from={listen_address}:{listen_port}",
+            f"--to-unix={SOCKET_PATH}",
+            "--decode-threads=6",
+            "--cpu-affinity",
+        ),
+        stderr=sys.stderr,
+        stdout=sys.stdout,
+    )
 
-    addrs = ", ".join(str(sock.getsockname()) for sock in server.sockets)
-    LOGGER.info(f"Serving on {addrs}")
+    loop = asyncio.get_running_loop()
 
-    async with server:
-        await server.serve_forever()
+    LOGGER.info("Listening for connections on %s", SOCKET_PATH)
+    while True:
+        client_sock, client_addr = await loop.sock_accept(lidi_dest_socket)
+        asyncio.create_task(handle_file(client_sock, client_addr))
 
 
 if __name__ == "__main__":
@@ -43,12 +97,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--listen-address",
         type=str,
-        default="localhost",
+        default="127.0.0.1",
     )
     parser.add_argument(
         "--listen-port",
         type=int,
-        default=6000,
+        default=6001,
     )
     parser.add_argument(
         "--log-level",
@@ -57,20 +111,21 @@ if __name__ == "__main__":
         choices=logging.getLevelNamesMapping().keys(),
     )
     parser.add_argument(
-        "--chunk-size",
-        type=int,
-        default=2 * 1024 ^ 2,  # 2MB,
+        "--socket-path",
+        type=pathlib.Path,
+        default=pathlib.Path("/tmp/lidir.sock"),
     )
+
     args = parser.parse_args()
 
     DATA_DIRECTORY: pathlib.Path = args.data_directory
-    CHUNK_SIZE: int = args.chunk_size
+    SOCKET_PATH: pathlib.Path = args.socket_path
 
     logging.basicConfig(
         level=logging.getLevelNamesMapping()[args.log_level],
     )
     asyncio.run(
-        receiver_server(
+        _receiver_server(
             args.listen_address,
             args.listen_port,
         )

@@ -20,15 +20,8 @@ services:
     command:
       - "--from-tcp=127.0.0.1:6000"
       - "--to=127.0.0.1:6001"
-
-  lidir:
-    build:
-      target: receive
-      dockerfile: lidi.Dockerfile
-    network_mode: host
-    command:
-      - "--from=127.0.0.1:6001"
-      - "--to-tcp=127.0.0.1:6002"
+      - "--encode-threads=6"
+      - "--cpu-affinity"
 
   receiver:
     build:
@@ -36,13 +29,13 @@ services:
       dockerfile: eurybis.Dockerfile
     network_mode: host
     volumes:
-      - type: volume
-        source: receiver_data
+      - type: bind
+        source: ./data
         target: /data
+    tmpfs:
+      # - /data:mode=777,noexec,size=10G
+      - /tmp
     develop: *eurybis-develop
     command:
       - "/data"
-      - "--listen-port=6002"
-
-volumes:
-  receiver_data:
+      - "--listen-port=6001"

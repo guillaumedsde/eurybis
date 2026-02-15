@@ -1,5 +1,14 @@
+FROM rust:1.93-trixie AS lidi-builder
 
-FROM ghcr.io/astral-sh/uv:trixie-slim AS builder
+USER nobody
+
+WORKDIR /lidi
+
+ADD https://github.com/ANSSI-FR/lidi.git#v2.1.1 .
+
+RUN cargo build --release --bin diode-send --bin diode-receive
+
+FROM ghcr.io/astral-sh/uv:trixie-slim AS eurybis-builder
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_NO_DEV=1 \
@@ -24,11 +33,13 @@ FROM gcr.io/distroless/cc:nonroot AS base
 
 WORKDIR /eurybis
 
-# Copy the python interpreter from the builder
-COPY --from=builder --chown=nonroot:nonroot /python /python
+# Copy the python interpreter from the eurybis-builder
+COPY --from=eurybis-builder --chown=nonroot:nonroot /python /python
 
-# Copy the application from the builder
-COPY --from=builder --chown=nonroot:nonroot /eurybis /eurybis
+# Copy the application from the eurybis-builder
+COPY --from=eurybis-builder --chown=nonroot:nonroot /eurybis /eurybis
+# Copy lidi binaries from lidi-builder
+COPY --from=builder --chown=root:root --chmod=755 /lidi/target/release/diode-send /lidi/target/release/diode-receive /usr/local/bin/
 
 # Place executables in the environment at the front of the path
 ENV PATH="/eurybis/.venv/bin:$PATH" \
