@@ -3,12 +3,7 @@ services:
     build:
       target: origin
       dockerfile: eurybis.Dockerfile
-    ports:
-      - host_ip: "127.0.0.1"
-        published: 8080
-        target: 8080
-        app_protocol: "http"
-        name: "eurybis-origin-http-server"
+    network_mode: host
     develop: &eurybis-develop
       watch:
         - path: ./eurybis

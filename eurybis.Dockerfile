@@ -50,4 +50,4 @@ FROM base AS origin
 
 EXPOSE 8080
 
-ENTRYPOINT ["python", "/eurybis/eurybis/origin_http_server.py"]
+ENTRYPOINT ["uvicorn", "--port=8080", "--loop=uvloop", "eurybis.origin_http_server:app"]

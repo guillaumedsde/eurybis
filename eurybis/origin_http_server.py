@@ -1,18 +1,26 @@
 import asyncio
+import http
 
-from fastapi import FastAPI
-from hypercorn.asyncio import serve
-from hypercorn.config import Config
+import fastapi
 
-config = Config()
-config.bind = ["localhost:8080"]  # As an example configuration setting
-app = FastAPI()
+app = fastapi.FastAPI()
 
-
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
+CHUNK_SIZE = 20_000_000  # 20MB
 
 
-if __name__ == "__main__":
-    asyncio.run(serve(app, config))  # type: ignore
+@app.post("/transferables/")
+async def create_transferable(request: fastapi.Request):
+    reader, writer = await asyncio.open_connection("127.0.0.1", 6000)
+
+    bytes_sent = 0
+    # Chunks are dependent on the ASGI implementation, see:
+    # https://github.com/Kludex/starlette/issues/2590
+    async for chunk in request.stream():
+        writer.write(chunk)
+        bytes_sent += len(chunk)
+        if bytes_sent % CHUNK_SIZE == 0:
+            await writer.drain()
+    writer.close()
+    await writer.wait_closed()
+
+    return fastapi.Response(status_code=http.HTTPStatus.OK)
