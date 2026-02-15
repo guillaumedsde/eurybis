@@ -33,8 +33,8 @@ async def handle_file(sock: socket.socket, addr: str):
 
     wpipe_size = fcntl.fcntl(wpipe, fcntl.F_GETPIPE_SZ)
 
-    # os.set_blocking(rpipe, False)
-    # os.set_blocking(wpipe, False)
+    os.set_blocking(rpipe, False)
+    os.set_blocking(wpipe, False)
 
     filepath = DATA_DIRECTORY / str(uuid.uuid4())
     dest_file = filepath.open("wb", buffering=0)
