@@ -61,4 +61,4 @@ FROM base AS origin
 
 EXPOSE 8080
 
-ENTRYPOINT ["uvicorn", "--port=8080", "--loop=uvloop", "eurybis.origin_http_server:app"]
+ENTRYPOINT ["uvicorn", "--port=8080", "--loop=uvloop", "--http=httptools", "eurybis.origin_http_server:app"]
