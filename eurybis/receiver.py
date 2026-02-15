@@ -70,8 +70,6 @@ async def _receiver_server(listen_address: str, listen_port: int):
             "diode-receive",
             f"--from={listen_address}:{listen_port}",
             f"--to-unix={SOCKET_PATH}",
-            "--decode-threads=6",
-            "--cpu-affinity",
         ),
         stderr=sys.stderr,
         stdout=sys.stdout,

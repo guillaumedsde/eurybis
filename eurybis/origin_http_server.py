@@ -19,8 +19,6 @@ def _origin():
             "diode-send",
             f"--from-unix={SOCKET_PATH}",
             "--to=127.0.0.1:6001",
-            "--encode-threads=6",
-            "--cpu-affinity",
         ),
         stderr=sys.stderr,
         stdout=sys.stdout,
