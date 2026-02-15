@@ -76,6 +76,7 @@ async def _receiver_server(config: DestinationEurybisConfiguration):
             "diode-receive",
             f"--from={config.lidir_listen_host}:{config.lidir_listen_port}",
             f"--to-unix={config.lidir_socket_path}",
+            f"--max-clients={config.lidir_max_clients}",
         ),
         stderr=sys.stderr,
         stdout=sys.stdout,

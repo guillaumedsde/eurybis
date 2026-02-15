@@ -19,6 +19,7 @@ def origin_server(config: OriginEurybisConfiguration):
             "diode-send",
             f"--from-unix={config.lidis_socket_path}",
             f"--to={config.lidis_send_host}:{config.lidis_send_port}",
+            f"--max-clients={config.lidis_max_clients}",
         ),
         stderr=sys.stderr,
         stdout=sys.stdout,

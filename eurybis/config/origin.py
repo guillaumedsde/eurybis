@@ -13,6 +13,7 @@ class OriginEurybisConfiguration(BaseEurybisConfiguration):
     lidis_socket_path: pathlib.Path
     lidis_send_host: str
     lidis_send_port: int
+    lidis_max_clients: int
 
 
 origin_parser = argparse.ArgumentParser(add_help=False)
@@ -44,5 +45,11 @@ origin_parser.add_argument(
 origin_parser.add_argument(
     "--lidis-send-port",
     type=int,
-    default="6000",
+    default=6000,
+)
+
+origin_parser.add_argument(
+    "--lidis-max-clients",
+    type=int,
+    default=100,
 )
