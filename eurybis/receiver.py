@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import fcntl
 import logging
 import os
 import pathlib
@@ -30,6 +31,8 @@ async def handle_file(sock: socket.socket, addr: str):
 
     rpipe, wpipe = os.pipe()
 
+    wpipe_size = fcntl.fcntl(wpipe, fcntl.F_GETPIPE_SZ)
+
     # os.set_blocking(rpipe, False)
     # os.set_blocking(wpipe, False)
 
@@ -39,7 +42,7 @@ async def handle_file(sock: socket.socket, addr: str):
     try:
         while True:
             try:
-                byte_count_from_socket = os.splice(sock.fileno(), wpipe, BUF_SIZE)
+                byte_count_from_socket = os.splice(sock.fileno(), wpipe, wpipe_size)
                 if not byte_count_from_socket:
                     break
                 LOGGER.debug("Spliced %d bytes from socket", byte_count_from_socket)
