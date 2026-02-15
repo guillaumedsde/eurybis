@@ -8,6 +8,8 @@ import subprocess
 import sys
 import uuid
 
+import uvloop
+
 from eurybis.config import DestinationEurybisConfiguration
 
 LOGGER = logging.getLogger(__name__)
@@ -88,7 +90,7 @@ async def _receiver_server(config: DestinationEurybisConfiguration):
 
 
 def destination_server(config: DestinationEurybisConfiguration):
-    asyncio.run(
+    uvloop.run(
         _receiver_server(
             config,
         )
