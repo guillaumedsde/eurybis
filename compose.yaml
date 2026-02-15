@@ -3,6 +3,8 @@ services:
     build:
       target: origin
       dockerfile: eurybis.Dockerfile
+      provenance: false
+      sbom: false
     network_mode: host
     develop: &eurybis-develop
       watch:
@@ -27,6 +29,8 @@ services:
     build:
       target: receiver
       dockerfile: eurybis.Dockerfile
+      provenance: false
+      sbom: false
     network_mode: host
     volumes:
       - type: bind
