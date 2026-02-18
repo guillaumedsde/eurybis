@@ -29,12 +29,11 @@ class SpliceHandler(BaseHTTPRequestHandler):
         client_fd = self.connection.fileno()
         uds_fd = uds.fileno()
 
-        buffered_bytes = bytearray(self.rfile.peek())
-        remaining -= uds.send(buffered_bytes)
+        buffered = self.rfile.read1(remaining)
+        uds.sendall(buffered)
+        remaining -= len(buffered)
 
         pipe_r, pipe_w = os.pipe()
-        os.set_blocking(pipe_r, False)
-        os.set_blocking(pipe_w, False)
         fcntl.fcntl(pipe_w, fcntl.F_SETPIPE_SZ, self.spice_pipe_size)
         fcntl.fcntl(pipe_r, fcntl.F_SETPIPE_SZ, self.spice_pipe_size)
 
