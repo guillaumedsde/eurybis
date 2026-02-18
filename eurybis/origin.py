@@ -2,10 +2,9 @@ import logging
 import os
 import subprocess
 import sys
+from http.server import ThreadingHTTPServer
 
-import uvicorn
-
-from eurybis.api import app
+from eurybis.api import SpliceHandler
 from eurybis.config import OriginEurybisConfiguration
 
 LOGGER = logging.getLogger(__name__)
@@ -20,8 +19,8 @@ def origin_server(config: OriginEurybisConfiguration):
             f"--from-unix={config.lidis_socket_path}",
             f"--to={config.lidis_send_host}:{config.lidis_send_port}",
             f"--max-clients={config.lidis_max_clients}",
-            "--flush",
-            "--encode-threads=6",
+            # "--flush",
+            "--encode-threads=8",
             "--cpu-affinity",
         ),
         stderr=sys.stderr,
@@ -29,11 +28,4 @@ def origin_server(config: OriginEurybisConfiguration):
     )
     # FIXME: waiting on https://github.com/Kludex/uvicorn/pull/2445
     os.environ["LIDIS_SOCKET_PATH"] = str(config.lidis_socket_path)
-    uvicorn.run(
-        app,
-        host=config.http_listen_host,
-        port=config.http_listen_port,
-        log_level=logging.getLevelNamesMapping()[config.log_level],
-        http="httptools",
-        loop="uvloop",
-    )
+    ThreadingHTTPServer(("0.0.0.0", 8080), SpliceHandler).serve_forever()

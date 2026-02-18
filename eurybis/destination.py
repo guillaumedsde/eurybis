@@ -8,8 +8,6 @@ import subprocess
 import sys
 import uuid
 
-import uvloop
-
 from eurybis.config import DestinationEurybisConfiguration
 
 LOGGER = logging.getLogger(__name__)
@@ -79,8 +77,8 @@ async def _receiver_server(config: DestinationEurybisConfiguration):
             f"--from={config.lidir_listen_host}:{config.lidir_listen_port}",
             f"--to-unix={config.lidir_socket_path}",
             f"--max-clients={config.lidir_max_clients}",
-            "--flush",
-            "--decode-threads=6",
+            # "--flush",
+            "--decode-threads=8",
             "--cpu-affinity",
         ),
         stderr=sys.stderr,
@@ -96,7 +94,7 @@ async def _receiver_server(config: DestinationEurybisConfiguration):
 
 
 def destination_server(config: DestinationEurybisConfiguration):
-    uvloop.run(
+    asyncio.run(
         _receiver_server(
             config,
         )
