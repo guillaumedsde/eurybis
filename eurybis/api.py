@@ -29,15 +29,16 @@ class SpliceHandler(BaseHTTPRequestHandler):
         client_fd = self.connection.fileno()
         uds_fd = uds.fileno()
 
-        buffered = self.rfile.read1(remaining)
-        uds.sendall(buffered)
-        remaining -= len(buffered)
-
         pipe_r, pipe_w = os.pipe()
         fcntl.fcntl(pipe_w, fcntl.F_SETPIPE_SZ, self.spice_pipe_size)
         fcntl.fcntl(pipe_r, fcntl.F_SETPIPE_SZ, self.spice_pipe_size)
 
         try:
+            buffered = self.rfile.read1(remaining)
+            print("initial buffer", buffered)
+            uds.sendall(buffered)
+            remaining -= len(buffered)
+
             while remaining > 0:
                 chunk = min(self.spice_pipe_size, remaining)
 
