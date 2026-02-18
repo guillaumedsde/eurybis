@@ -34,7 +34,9 @@ async def handle_file(sock: socket.socket, destination_directory: pathlib.Path):
 
     rpipe, wpipe = os.pipe()
 
-    wpipe_size = fcntl.fcntl(wpipe, fcntl.F_GETPIPE_SZ)
+    size = int(pathlib.Path("/proc/sys/fs/pipe-max-size").read_text())
+    fcntl.fcntl(wpipe, fcntl.F_SETPIPE_SZ, size)
+    fcntl.fcntl(rpipe, fcntl.F_SETPIPE_SZ, size)
 
     os.set_blocking(rpipe, False)
     os.set_blocking(wpipe, False)
@@ -45,7 +47,7 @@ async def handle_file(sock: socket.socket, destination_directory: pathlib.Path):
     try:
         while True:
             try:
-                byte_count_from_socket = os.splice(sock.fileno(), wpipe, wpipe_size)
+                byte_count_from_socket = os.splice(sock.fileno(), wpipe, size)
                 if not byte_count_from_socket:
                     break
                 LOGGER.debug("Spliced %d bytes from socket", byte_count_from_socket)
