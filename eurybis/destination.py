@@ -12,8 +12,6 @@ from eurybis.config import DestinationEurybisConfiguration
 
 LOGGER = logging.getLogger(__name__)
 
-BUF_SIZE = 1 << 20  # 1 MB
-
 
 async def wait_until_readable(fileno: int):
     loop = asyncio.get_running_loop()
@@ -26,7 +24,9 @@ async def wait_until_readable(fileno: int):
     await ready.wait()
 
 
-async def handle_file(sock: socket.socket, destination_directory: pathlib.Path):
+async def handle_file(
+    sock: socket.socket, destination_directory: pathlib.Path, splice_pipe_size: int
+):
     LOGGER.info("Handling new socket connection")
     sock.setblocking(False)
 
@@ -90,7 +90,9 @@ async def _receiver_server(config: DestinationEurybisConfiguration):
     LOGGER.info("Listening for connections on %s", config.lidir_socket_path)
     while True:
         client_sock, _ = await loop.sock_accept(lidi_dest_socket)
-        asyncio.create_task(handle_file(client_sock, config.data_directory))
+        asyncio.create_task(
+            handle_file(client_sock, config.data_directory, config.pipe_size)
+        )
 
 
 def destination_server(config: DestinationEurybisConfiguration):

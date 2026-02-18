@@ -1,11 +1,15 @@
 import fcntl
 import os
-import pathlib
 import socket
 from http.server import BaseHTTPRequestHandler
 
 
 class SpliceHandler(BaseHTTPRequestHandler):
+    def __init__(self, request, client_address, server) -> None:
+        self.spice_pipe_size = int(os.environ["PIPE_SIZE"])
+        self.lidis_socket_path = os.environ["LIDIS_SOCKET_PATH"]
+        return super().__init__(request, client_address, server)
+
     def do_POST(self):
         if self.path != "/":
             self.send_error(404)
@@ -20,7 +24,7 @@ class SpliceHandler(BaseHTTPRequestHandler):
 
         # Open Unix domain socket connection per request
         uds = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        uds.connect(os.environ["LIDIS_SOCKET_PATH"])
+        uds.connect(self.lidis_socket_path)
 
         client_fd = self.connection.fileno()
         uds_fd = uds.fileno()
@@ -31,13 +35,12 @@ class SpliceHandler(BaseHTTPRequestHandler):
         pipe_r, pipe_w = os.pipe()
         os.set_blocking(pipe_r, False)
         os.set_blocking(pipe_w, False)
-        size = int(pathlib.Path("/proc/sys/fs/pipe-max-size").read_text())
-        fcntl.fcntl(pipe_w, fcntl.F_SETPIPE_SZ, size)
-        fcntl.fcntl(pipe_r, fcntl.F_SETPIPE_SZ, size)
+        fcntl.fcntl(pipe_w, fcntl.F_SETPIPE_SZ, self.spice_pipe_size)
+        fcntl.fcntl(pipe_r, fcntl.F_SETPIPE_SZ, self.spice_pipe_size)
 
         try:
             while remaining > 0:
-                chunk = min(size, remaining)
+                chunk = min(self.spice_pipe_size, remaining)
 
                 # socket -> pipe
                 moved_in = os.splice(client_fd, pipe_w, chunk)
@@ -48,7 +51,8 @@ class SpliceHandler(BaseHTTPRequestHandler):
                 sent = os.splice(pipe_r, uds_fd, moved_in)
                 if sent == 0:
                     raise RuntimeError("splice to UDS returned 0")
-
+                if sent != moved_in:
+                    raise RuntimeError("Partial pipe splice")
                 remaining -= moved_in
 
             self.send_response(200)
