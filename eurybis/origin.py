@@ -29,4 +29,9 @@ def origin_server(config: OriginEurybisConfiguration):
     # FIXME: waiting on https://github.com/Kludex/uvicorn/pull/2445
     os.environ["LIDIS_SOCKET_PATH"] = str(config.lidis_socket_path)
     os.environ["PIPE_SIZE"] = str(config.pipe_size)
-    ThreadingHTTPServer(("0.0.0.0", 8080), SpliceHandler).serve_forever()
+    LOGGER.info(
+        "Starting HTTP server %s:%d", config.http_listen_host, config.http_listen_port
+    )
+    ThreadingHTTPServer(
+        (config.http_listen_host, config.http_listen_port), SpliceHandler
+    ).serve_forever()
