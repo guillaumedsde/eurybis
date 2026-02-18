@@ -24,6 +24,7 @@ class SpliceHandler(BaseHTTPRequestHandler):
 
         # Open Unix domain socket connection per request
         uds = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        uds.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4 * 1024 * 1024)
         uds.connect(self.lidis_socket_path)
 
         client_fd = self.connection.fileno()
@@ -35,7 +36,6 @@ class SpliceHandler(BaseHTTPRequestHandler):
 
         try:
             buffered = self.rfile.read1(remaining)
-            print("initial buffer", buffered)
             uds.sendall(buffered)
             remaining -= len(buffered)
 
