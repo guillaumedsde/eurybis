@@ -1,14 +1,25 @@
 import fcntl
 import os
+import pathlib
 import socket
 from http.server import BaseHTTPRequestHandler
 
 
 class SpliceHandler(BaseHTTPRequestHandler):
-    def __init__(self, request, client_address, server) -> None:
-        self.spice_pipe_size = int(os.environ["PIPE_SIZE"])
-        self.lidis_socket_path = os.environ["LIDIS_SOCKET_PATH"]
-        return super().__init__(request, client_address, server)
+    pipe_size: int
+    lidis_socket_path: pathlib.Path
+
+    def __init__(
+        self,
+        request,
+        client_address,
+        server,
+        splice_pipe_size: int,
+        lidis_socket_path: pathlib.Path,
+    ) -> None:
+        self.splice_pipe_size = splice_pipe_size
+        self.lidis_socket_path = lidis_socket_path
+        super().__init__(request, client_address, server)
 
     def do_POST(self):
         if self.path != "/":
@@ -25,14 +36,14 @@ class SpliceHandler(BaseHTTPRequestHandler):
         # Open Unix domain socket connection per request
         uds = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         uds.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4 * 1024 * 1024)
-        uds.connect(self.lidis_socket_path)
+        uds.connect(str(self.lidis_socket_path))
 
         client_fd = self.connection.fileno()
         uds_fd = uds.fileno()
 
         pipe_r, pipe_w = os.pipe()
-        fcntl.fcntl(pipe_w, fcntl.F_SETPIPE_SZ, self.spice_pipe_size)
-        fcntl.fcntl(pipe_r, fcntl.F_SETPIPE_SZ, self.spice_pipe_size)
+        fcntl.fcntl(pipe_w, fcntl.F_SETPIPE_SZ, self.splice_pipe_size)
+        fcntl.fcntl(pipe_r, fcntl.F_SETPIPE_SZ, self.splice_pipe_size)
 
         try:
             buffered = self.rfile.read1(remaining)
@@ -40,7 +51,7 @@ class SpliceHandler(BaseHTTPRequestHandler):
             remaining -= len(buffered)
 
             while remaining > 0:
-                chunk = min(self.spice_pipe_size, remaining)
+                chunk = min(self.splice_pipe_size, remaining)
 
                 # socket -> pipe
                 moved_in = os.splice(client_fd, pipe_w, chunk)

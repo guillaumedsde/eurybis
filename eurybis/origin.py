@@ -1,5 +1,5 @@
+import functools
 import logging
-import os
 import subprocess
 import sys
 from http.server import ThreadingHTTPServer
@@ -26,12 +26,15 @@ def origin_server(config: OriginEurybisConfiguration):
         stderr=sys.stderr,
         stdout=sys.stdout,
     )
-    # FIXME: waiting on https://github.com/Kludex/uvicorn/pull/2445
-    os.environ["LIDIS_SOCKET_PATH"] = str(config.lidis_socket_path)
-    os.environ["PIPE_SIZE"] = str(config.pipe_size)
     LOGGER.info(
         "Starting HTTP server %s:%d", config.http_listen_host, config.http_listen_port
     )
+
+    request_handler_class = functools.partial(
+        SpliceHandler,
+        splice_pipe_size=config.pipe_size,
+        lidis_socket_path=config.lidis_socket_path,
+    )
     ThreadingHTTPServer(
-        (config.http_listen_host, config.http_listen_port), SpliceHandler
+        (config.http_listen_host, config.http_listen_port), request_handler_class
     ).serve_forever()
