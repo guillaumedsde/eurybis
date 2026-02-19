@@ -78,7 +78,7 @@ async def _receiver_server(config: DestinationEurybisConfiguration):
             f"--to-unix={config.lidir_socket_path}",
             f"--max-clients={config.lidir_max_clients}",
             # "--flush",
-            "--decode-threads=8",
+            "--decode-threads=5",
             "--cpu-affinity",
         ),
         stderr=sys.stderr,

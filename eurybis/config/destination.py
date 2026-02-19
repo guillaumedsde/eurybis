@@ -43,5 +43,5 @@ destination_parser.add_argument(
 destination_parser.add_argument(
     "--lidir-max-clients",
     type=int,
-    default=100,
+    default=250,
 )

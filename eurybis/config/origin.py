@@ -51,5 +51,5 @@ origin_parser.add_argument(
 origin_parser.add_argument(
     "--lidis-max-clients",
     type=int,
-    default=100,
+    default=250,
 )

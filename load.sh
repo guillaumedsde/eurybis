@@ -1,8 +1,8 @@
 #!/bin/bash
 
 URL="http://localhost:8080/"
-SIZE=$((100 * 1024 * 1024))  # 100MB
-CONCURRENT_REQUESTS=90
+SIZE=$((50 * 1024 * 1024))
+CONCURRENT_REQUESTS=250
 
 send_request() {
   head -c "$SIZE" /dev/zero | \
