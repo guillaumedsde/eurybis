@@ -18,7 +18,7 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_PREFERENCE=only-managed
 
 RUN --mount=type=bind,source=.python-version,target=.python-version \
-    uv python install "$(cat .python-version)"
+    uv python install "$(cat .python-version)t"
 
 WORKDIR /eurybis
 RUN --mount=type=cache,target=/root/.cache/uv \
