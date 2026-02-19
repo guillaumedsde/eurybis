@@ -23,13 +23,12 @@ services:
     mem_limit: 8G
     build: *eurybis-build
     network_mode: host
-    # volumes:
-    #   - type: bind
-    #     source: ./data
-    #     target: /data
+    volumes:
+      - type: bind
+        source: ./data
+        target: /data
     tmpfs:
       - /run:mode=777,noexec,size=1K
-      - /data:mode=777
     develop: *eurybis-develop
     command:
       - "destination"
