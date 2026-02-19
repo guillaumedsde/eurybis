@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import fcntl
 import logging
 import os
@@ -11,6 +12,14 @@ import uuid
 from eurybis.config import DestinationEurybisConfiguration
 
 LOGGER = logging.getLogger(__name__)
+
+
+def sizeof_fmt(num, suffix="B"):
+    for unit in ("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"):
+        if abs(num) < 1024.0:
+            return f"{num:3.1f}{unit}{suffix}"
+        num /= 1024.0
+    return f"{num:.1f}Yi{suffix}"
 
 
 async def wait_until_readable(fileno: int):
@@ -27,6 +36,7 @@ async def wait_until_readable(fileno: int):
 async def handle_file(
     sock: socket.socket, destination_directory: pathlib.Path, splice_pipe_size: int
 ):
+    new_connection_start = datetime.time
     LOGGER.info("Handling new socket connection")
     sock.setblocking(False)
 
@@ -42,17 +52,17 @@ async def handle_file(
     filepath = destination_directory / str(uuid.uuid4())
     dest_file = filepath.open("wb", buffering=0)
 
+    bytes_transferred = 0
     try:
         while True:
             try:
                 byte_count_from_socket = os.splice(sock.fileno(), wpipe, size)
                 if not byte_count_from_socket:
                     break
-                LOGGER.debug("Spliced %d bytes from socket", byte_count_from_socket)
                 byte_count_from_pipe = os.splice(
                     rpipe, dest_file.fileno(), byte_count_from_socket
                 )
-                LOGGER.debug("Spliced %d bytes from pipe", byte_count_from_pipe)
+                bytes_transferred += byte_count_from_pipe
             except BlockingIOError:
                 LOGGER.debug("BlockingIOError")
                 await wait_until_readable(sock.fileno())
@@ -62,6 +72,12 @@ async def handle_file(
         os.close(wpipe)
         dest_file.close()
         sock.close()
+    transfer_duration = datetime.datetime.now() - new_connection_start
+
+    LOGGER.info(
+        "Finished a transfer at %s",
+        sizeof_fmt(bytes_transferred / transfer_duration.seconds, "B/s"),
+    )
 
 
 async def _receiver_server(config: DestinationEurybisConfiguration):
