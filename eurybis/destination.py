@@ -72,7 +72,7 @@ async def handle_file(
 
     LOGGER.info(
         "Finished a transfer at %s",
-        sizeof_fmt(bytes_transferred / transfer_duration.seconds, "B/s"),
+        sizeof_fmt(bytes_transferred / transfer_duration.seconds / 8, "b/s"),
     )
 
 
