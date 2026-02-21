@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 import fcntl
 import logging
 import os
@@ -10,16 +9,9 @@ import sys
 import uuid
 
 from eurybis.config import DestinationEurybisConfiguration
+from eurybis.utils import BandwidthCounter
 
 LOGGER = logging.getLogger(__name__)
-
-
-def sizeof_fmt(num, suffix="B"):
-    for unit in ("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"):
-        if abs(num) < 1024.0:
-            return f"{num:3.1f}{unit}{suffix}"
-        num /= 1024.0
-    return f"{num:.1f}Yi{suffix}"
 
 
 async def wait_until_readable(fileno: int):
@@ -36,44 +28,39 @@ async def wait_until_readable(fileno: int):
 async def handle_file(
     sock: socket.socket, destination_directory: pathlib.Path, splice_pipe_size: int
 ):
-    new_connection_start = datetime.time
-    LOGGER.info("Handling new socket connection")
-    sock.setblocking(True)
+    with BandwidthCounter() as bc:
+        LOGGER.info("Handling new socket connection")
+        sock.setblocking(True)
 
-    rpipe, wpipe = os.pipe()
+        rpipe, wpipe = os.pipe()
 
-    size = splice_pipe_size
-    fcntl.fcntl(wpipe, fcntl.F_SETPIPE_SZ, size)
-    fcntl.fcntl(rpipe, fcntl.F_SETPIPE_SZ, size)
+        size = splice_pipe_size
+        fcntl.fcntl(wpipe, fcntl.F_SETPIPE_SZ, size)
+        fcntl.fcntl(rpipe, fcntl.F_SETPIPE_SZ, size)
 
-    os.set_blocking(rpipe, True)
-    os.set_blocking(wpipe, True)
+        os.set_blocking(rpipe, True)
+        os.set_blocking(wpipe, True)
 
-    filepath = destination_directory / str(uuid.uuid4())
-    dest_file = filepath.open("wb", buffering=0)
+        filepath = destination_directory / str(uuid.uuid4())
+        dest_file = filepath.open("wb", buffering=0)
 
-    bytes_transferred = 0
-    try:
-        while True:
-            byte_count_from_socket = os.splice(sock.fileno(), wpipe, size)
-            if not byte_count_from_socket:
-                break
-            byte_count_from_pipe = os.splice(
-                rpipe, dest_file.fileno(), byte_count_from_socket
-            )
-            bytes_transferred += byte_count_from_pipe
-    finally:
-        LOGGER.info("Closing socket, pipes and file")
-        os.close(rpipe)
-        os.close(wpipe)
-        dest_file.close()
-        sock.close()
-    transfer_duration = datetime.datetime.now() - new_connection_start
+        try:
+            while True:
+                byte_count_from_socket = os.splice(sock.fileno(), wpipe, size)
+                if not byte_count_from_socket:
+                    break
+                byte_count_from_pipe = os.splice(
+                    rpipe, dest_file.fileno(), byte_count_from_socket
+                )
+                bc.byte_count += byte_count_from_pipe
+        finally:
+            LOGGER.info("Closing socket, pipes and file")
+            os.close(rpipe)
+            os.close(wpipe)
+            dest_file.close()
+            sock.close()
 
-    LOGGER.info(
-        "Finished a transfer at %s",
-        sizeof_fmt(bytes_transferred / transfer_duration.seconds / 8, "b/s"),
-    )
+        LOGGER.info("Finished a transfer at %s", bc.hf_bandwidth)
 
 
 async def _receiver_server(config: DestinationEurybisConfiguration):

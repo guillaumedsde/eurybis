@@ -1,8 +1,13 @@
 import fcntl
+import logging
 import os
 import pathlib
 import socket
 from http.server import BaseHTTPRequestHandler
+
+from eurybis.utils import BandwidthCounter
+
+LOGGER = logging.getLogger(__name__)
 
 
 class SpliceHandler(BaseHTTPRequestHandler):
@@ -46,25 +51,29 @@ class SpliceHandler(BaseHTTPRequestHandler):
         fcntl.fcntl(pipe_r, fcntl.F_SETPIPE_SZ, self.splice_pipe_size)
 
         try:
-            buffered = self.rfile.read1(remaining)
-            uds.sendall(buffered)
-            remaining -= len(buffered)
+            with BandwidthCounter() as bc:
+                buffered = self.rfile.read1(remaining)
+                uds.sendall(buffered)
+                remaining -= len(buffered)
 
-            while remaining > 0:
-                chunk = min(self.splice_pipe_size, remaining)
+                while remaining > 0:
+                    chunk = min(self.splice_pipe_size, remaining)
 
-                # socket -> pipe
-                moved_in = os.splice(client_fd, pipe_w, chunk)
-                if moved_in == 0:
-                    break
+                    # socket -> pipe
+                    moved_in = os.splice(client_fd, pipe_w, chunk)
+                    if moved_in == 0:
+                        break
 
-                # pipe -> unix socket
-                sent = os.splice(pipe_r, uds_fd, moved_in)
-                if sent == 0:
-                    raise RuntimeError("splice to UDS returned 0")
-                if sent != moved_in:
-                    raise RuntimeError("Partial pipe splice")
-                remaining -= moved_in
+                    # pipe -> unix socket
+                    sent = os.splice(pipe_r, uds_fd, moved_in)
+                    if sent == 0:
+                        raise RuntimeError("splice to UDS returned 0")
+                    if sent != moved_in:
+                        raise RuntimeError("Partial pipe splice")
+                    remaining -= moved_in
+
+                bc.byte_count = int(content_length)
+                LOGGER.info("Finished a transfer at %s", bc.hf_bandwidth)
 
             self.send_response(200)
             self.end_headers()
@@ -77,6 +86,3 @@ class SpliceHandler(BaseHTTPRequestHandler):
             os.close(pipe_r)
             os.close(pipe_w)
             uds.close()
-
-    def log_message(self, format, *args):
-        return  # silence logging
