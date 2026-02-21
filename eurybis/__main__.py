@@ -22,6 +22,8 @@ if __name__ == "__main__":
 
     logging.basicConfig(
         level=logging.getLevelNamesMapping()[config.log_level],
+        format="%(asctime)s %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
     )
 
     CMD_TO_CALLABLE[args.command](config)
