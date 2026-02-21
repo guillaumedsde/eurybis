@@ -1,4 +1,6 @@
 import datetime
+import os
+import pathlib
 
 
 def sizeof_fmt(num, suffix="B"):
@@ -29,3 +31,25 @@ class BandwidthCounter:
     @property
     def hf_bandwidth(self) -> str:
         return sizeof_fmt(self.bandwidth, suffix="B/s")
+
+
+def compute_pipe_size(max_pipe_count: int) -> int:
+    page_size = os.sysconf("SC_PAGE_SIZE")
+    pipe_max_size = int(pathlib.Path("/proc/sys/fs/pipe-max-size").read_text())
+    pipe_user_pages_soft = int(
+        pathlib.Path("/proc/sys/fs/pipe-user-pages-soft").read_text()
+    )
+    pipe_user_pages_hard = int(
+        pathlib.Path("/proc/sys/fs/pipe-user-pages-hard").read_text()
+    )
+    pipe_user_page_limit = pipe_user_pages_soft or pipe_user_pages_hard
+    pipe_user_bytes_soft = pipe_user_page_limit * page_size
+
+    # Select optimal size
+    optimal_pipe_size_for_n_pipes = min(
+        pipe_max_size, pipe_user_bytes_soft // max_pipe_count
+    )
+
+    clamped_optimal_pipe_size = (optimal_pipe_size_for_n_pipes // page_size) * page_size
+
+    return max(page_size, clamped_optimal_pipe_size)

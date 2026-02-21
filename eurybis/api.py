@@ -40,7 +40,7 @@ class SpliceHandler(BaseHTTPRequestHandler):
 
         # Open Unix domain socket connection per request
         uds = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        uds.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4 * 1024 * 1024)
+        uds.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, self.splice_pipe_size)
         uds.connect(str(self.lidis_socket_path))
 
         client_fd = self.connection.fileno()

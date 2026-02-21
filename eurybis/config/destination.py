@@ -12,7 +12,6 @@ class DestinationEurybisConfiguration(BaseEurybisConfiguration):
     lidir_socket_path: pathlib.Path
     lidir_listen_host: str
     lidir_listen_port: int
-    lidir_max_clients: int
 
 
 destination_parser = argparse.ArgumentParser(add_help=False)
@@ -38,10 +37,4 @@ destination_parser.add_argument(
     "--lidir-listen-port",
     type=int,
     default=6000,
-)
-
-destination_parser.add_argument(
-    "--lidir-max-clients",
-    type=int,
-    default=250,
 )

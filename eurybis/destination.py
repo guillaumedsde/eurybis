@@ -9,7 +9,7 @@ import sys
 import uuid
 
 from eurybis.config import DestinationEurybisConfiguration
-from eurybis.utils import BandwidthCounter
+from eurybis.utils import BandwidthCounter, compute_pipe_size
 
 LOGGER = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ async def handle_file(
         os.set_blocking(wpipe, False)
 
         filepath = destination_directory / str(uuid.uuid4())
-        dest_file = filepath.open("wb", buffering=0)
+        dest_file = filepath.open("wb", buffering=size)
 
         try:
             while True:
@@ -83,6 +83,9 @@ async def handle_file(
 async def _receiver_server(config: DestinationEurybisConfiguration):
     config.lidir_socket_path.unlink(missing_ok=True)
     lidi_dest_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    lidi_dest_socket.setsockopt(
+        socket.SOL_SOCKET, socket.SO_RCVBUF, compute_pipe_size(config.lidi_max_clients)
+    )
     lidi_dest_socket.bind(str(config.lidir_socket_path))
     lidi_dest_socket.setblocking(False)
     lidi_dest_socket.listen()
@@ -92,8 +95,9 @@ async def _receiver_server(config: DestinationEurybisConfiguration):
             "diode-receive",
             f"--from={config.lidir_listen_host}:{config.lidir_listen_port}",
             f"--to-unix={config.lidir_socket_path}",
-            f"--max-clients={config.lidir_max_clients}",
+            f"--max-clients={config.lidi_max_clients}",
             "--decode-threads=5",
+            "--flush",
             "--cpu-affinity",
         ),
         stderr=sys.stderr,
@@ -106,7 +110,11 @@ async def _receiver_server(config: DestinationEurybisConfiguration):
     while True:
         client_sock, _ = await loop.sock_accept(lidi_dest_socket)
         asyncio.create_task(
-            handle_file(client_sock, config.data_directory, config.pipe_size)
+            handle_file(
+                client_sock,
+                config.data_directory,
+                compute_pipe_size(config.lidi_max_clients),
+            )
         )
 
 
