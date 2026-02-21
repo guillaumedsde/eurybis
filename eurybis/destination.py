@@ -42,7 +42,7 @@ async def handle_file(
 
     rpipe, wpipe = os.pipe()
 
-    size = int(pathlib.Path("/proc/sys/fs/pipe-max-size").read_text())
+    size = splice_pipe_size
     fcntl.fcntl(wpipe, fcntl.F_SETPIPE_SZ, size)
     fcntl.fcntl(rpipe, fcntl.F_SETPIPE_SZ, size)
 
