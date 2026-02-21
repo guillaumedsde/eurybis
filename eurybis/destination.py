@@ -16,13 +16,26 @@ LOGGER = logging.getLogger(__name__)
 
 async def wait_until_readable(fileno: int):
     loop = asyncio.get_running_loop()
-    ready = asyncio.Event()
+    future = loop.create_future()
 
-    def on_readable():
-        ready.set()
+    def reader():
+        loop.remove_reader(fileno)
+        future.set_result(None)
 
-    loop.add_reader(fileno, on_readable)
-    await ready.wait()
+    loop.add_reader(fileno, reader)
+    await future
+
+
+async def wait_until_writable(fileno: int):
+    loop = asyncio.get_running_loop()
+    future = loop.create_future()
+
+    def writer():
+        loop.remove_writer(fileno)
+        future.set_result(None)
+
+    loop.add_writer(fileno, writer)
+    await future
 
 
 async def handle_file(
@@ -30,7 +43,7 @@ async def handle_file(
 ):
     with BandwidthCounter() as bc:
         LOGGER.info("Handling new socket connection")
-        sock.setblocking(True)
+        sock.setblocking(False)
 
         rpipe, wpipe = os.pipe()
 
@@ -38,17 +51,21 @@ async def handle_file(
         fcntl.fcntl(wpipe, fcntl.F_SETPIPE_SZ, size)
         fcntl.fcntl(rpipe, fcntl.F_SETPIPE_SZ, size)
 
-        os.set_blocking(rpipe, True)
-        os.set_blocking(wpipe, True)
+        os.set_blocking(rpipe, False)
+        os.set_blocking(wpipe, False)
 
         filepath = destination_directory / str(uuid.uuid4())
         dest_file = filepath.open("wb", buffering=0)
 
         try:
             while True:
+                await asyncio.gather(
+                    wait_until_readable(sock.fileno()), wait_until_writable(wpipe)
+                )
                 byte_count_from_socket = os.splice(sock.fileno(), wpipe, size)
                 if not byte_count_from_socket:
                     break
+                await wait_until_readable(rpipe)
                 byte_count_from_pipe = os.splice(
                     rpipe, dest_file.fileno(), byte_count_from_socket
                 )
