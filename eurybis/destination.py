@@ -38,7 +38,7 @@ async def handle_file(
 ):
     new_connection_start = datetime.time
     LOGGER.info("Handling new socket connection")
-    sock.setblocking(False)
+    sock.setblocking(True)
 
     rpipe, wpipe = os.pipe()
 
@@ -55,17 +55,13 @@ async def handle_file(
     bytes_transferred = 0
     try:
         while True:
-            try:
-                byte_count_from_socket = os.splice(sock.fileno(), wpipe, size)
-                if not byte_count_from_socket:
-                    break
-                byte_count_from_pipe = os.splice(
-                    rpipe, dest_file.fileno(), byte_count_from_socket
-                )
-                bytes_transferred += byte_count_from_pipe
-            except BlockingIOError:
-                LOGGER.debug("BlockingIOError")
-                await wait_until_readable(sock.fileno())
+            byte_count_from_socket = os.splice(sock.fileno(), wpipe, size)
+            if not byte_count_from_socket:
+                break
+            byte_count_from_pipe = os.splice(
+                rpipe, dest_file.fileno(), byte_count_from_socket
+            )
+            bytes_transferred += byte_count_from_pipe
     finally:
         LOGGER.info("Closing socket, pipes and file")
         os.close(rpipe)
