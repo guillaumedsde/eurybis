@@ -19,7 +19,6 @@ def origin_server(config: OriginEurybisConfiguration):
             f"--from-unix={config.lidis_socket_path}",
             f"--to={config.lidis_send_host}:{config.lidis_send_port}",
             f"--max-clients={config.lidis_max_clients}",
-            # "--flush",
             "--encode-threads=5",
             "--cpu-affinity",
         ),
