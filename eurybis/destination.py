@@ -46,8 +46,8 @@ async def handle_file(
     fcntl.fcntl(wpipe, fcntl.F_SETPIPE_SZ, size)
     fcntl.fcntl(rpipe, fcntl.F_SETPIPE_SZ, size)
 
-    os.set_blocking(rpipe, False)
-    os.set_blocking(wpipe, False)
+    os.set_blocking(rpipe, True)
+    os.set_blocking(wpipe, True)
 
     filepath = destination_directory / str(uuid.uuid4())
     dest_file = filepath.open("wb", buffering=0)
