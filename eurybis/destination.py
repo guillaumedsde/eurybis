@@ -38,6 +38,12 @@ async def wait_until_writable(fileno: int):
     await future
 
 
+def _handle_file(
+    sock: socket.socket, destination_directory: pathlib.Path, splice_pipe_size: int
+):
+    return asyncio.run(handle_file(sock, destination_directory, splice_pipe_size))
+
+
 async def handle_file(
     sock: socket.socket, destination_directory: pathlib.Path, splice_pipe_size: int
 ):
@@ -110,7 +116,8 @@ async def _receiver_server(config: DestinationEurybisConfiguration):
     while True:
         client_sock, _ = await loop.sock_accept(lidi_dest_socket)
         asyncio.create_task(
-            handle_file(
+            asyncio.to_thread(
+                _handle_file,
                 client_sock,
                 config.data_directory,
                 compute_pipe_size(config.lidi_max_clients),
