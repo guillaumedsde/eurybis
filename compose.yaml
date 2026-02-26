@@ -31,7 +31,7 @@ services:
     #     target: /data
     tmpfs:
       - /run:mode=777,noexec,size=1K
-      - /data:mode=777,noexec,size=10G
+      - /data:mode=777,noexec,size=4G
     develop: *eurybis-develop
     command:
       - "destination"
