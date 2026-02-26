@@ -2,6 +2,7 @@ services:
   origin:
     image: eurybis
     mem_limit: 8G
+    user: "3000"
     build: &eurybis-build
       provenance: false
       sbom: false
@@ -21,14 +22,16 @@ services:
   destination:
     image: eurybis
     mem_limit: 8G
+    user: "3001"
     build: *eurybis-build
     network_mode: host
-    volumes:
-      - type: bind
-        source: ./data
-        target: /data
+    # volumes:
+    #   - type: bind
+    #     source: /data_receive
+    #     target: /data
     tmpfs:
       - /run:mode=777,noexec,size=1K
+      - /data:mode=777,noexec,size=10G
     develop: *eurybis-develop
     command:
       - "destination"
