@@ -1,6 +1,9 @@
 import datetime
+import logging
 import os
 import pathlib
+
+LOGGER = logging.getLogger(__name__)
 
 
 def sizeof_fmt(num, suffix="B"):
@@ -47,9 +50,19 @@ def compute_pipe_size(max_pipe_count: int) -> int:
 
     # Select optimal size
     optimal_pipe_size_for_n_pipes = min(
-        pipe_max_size, pipe_user_bytes_soft // max_pipe_count
+        pipe_max_size,
+        pipe_user_bytes_soft // max_pipe_count,
     )
 
-    clamped_optimal_pipe_size = (optimal_pipe_size_for_n_pipes // page_size) * page_size
+    clamped_optimal_pipe_size = (
+        (optimal_pipe_size_for_n_pipes // page_size) - 1
+    ) * page_size
 
-    return max(page_size, clamped_optimal_pipe_size)
+    final_pipe_size = (
+        max(page_size, clamped_optimal_pipe_size) // 2
+    )  # We have send/receive pipes
+
+    LOGGER.debug(
+        "final_pipe_size: %s (%d Bytes)", sizeof_fmt(final_pipe_size), final_pipe_size
+    )
+    return final_pipe_size
