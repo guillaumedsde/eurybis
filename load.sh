@@ -2,7 +2,7 @@
 
 URL="http://localhost:8080/"
 SIZE=$((50 * 1024 * 1024))
-CONCURRENT_REQUESTS=250
+CONCURRENT_REQUESTS=150
 
 send_request() {
   head -c "$SIZE" /dev/zero | \

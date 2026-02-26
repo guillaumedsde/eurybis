@@ -22,4 +22,4 @@ root_parser.add_argument(
     choices=logging.getLevelNamesMapping().keys(),
 )
 
-root_parser.add_argument("--lidi-max-clients", type=int, default=50)
+root_parser.add_argument("--lidi-max-clients", type=int, default=200)
