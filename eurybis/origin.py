@@ -23,6 +23,8 @@ def origin_server(config: OriginEurybisConfiguration):
             f"--to={config.lidis_send_host}:{config.lidis_send_port}",
             f"--max-clients={config.lidi_max_clients}",
             "--encode-threads=5",
+            f"--to-mtu={config.lidi_udp_mtu}",
+            f"--batch={config.lidi_udp_batch_size}",
             "--flush",
             "--cpu-affinity",
         ),

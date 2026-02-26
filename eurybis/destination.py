@@ -102,6 +102,8 @@ async def _receiver_server(config: DestinationEurybisConfiguration):
             f"--from={config.lidir_listen_host}:{config.lidir_listen_port}",
             f"--to-unix={config.lidir_socket_path}",
             f"--max-clients={config.lidi_max_clients}",
+            f"--from-mtu={config.lidi_udp_mtu}",
+            f"--batch={config.lidi_udp_batch_size}",
             "--decode-threads=5",
             "--flush",
             "--cpu-affinity",
